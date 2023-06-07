@@ -43,50 +43,50 @@ require('dotenv').config();
 var FLASHBOTS_URL = "https://relay.flashbots.net";
 var TOKEN_ADDRESS = "0xcf8F4Ac2F895C7241e90D8968C574AA0C805cA75";
 var main = function () { return __awaiter(void 0, void 0, void 0, function () {
-    var provider, authSigner, flashbotsProvider, victim, helper, IERC721ABI, iface, estimatedGasLimit, estimatedFinalPrice, finalPrice, currentGasPrice;
+    var provider, authSigner, flashbotsProvider, victim, helper, IERC721_ABI, IERC721, estimatedTransferGasConsumption, estimatedFinalPrice, currentGasPrice, finalPrice;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
-                if (process.env.HACKED_KEY === undefined ||
+                if (process.env.VICTIM_KEY === undefined ||
                     process.env.HELPER_KEY === undefined) {
-                    console.error("NO KEYS");
+                    console.error("BOTH KEYS ARE REQUIRED!");
                     (0, process_1.exit)(1);
                 }
-                provider = new ethers_1.providers.JsonRpcProvider("https://eth-mainnet.g.alchemy.com/v2/JUtD4J7cgzqW4ATc7Y4APKJ6aPk0vWCm");
+                provider = new ethers_1.providers.JsonRpcProvider("https://eth-mainnet.g.alchemy.com/v2/{YOUR_ALCHEMY_AUTH_KEY}");
                 authSigner = ethers_1.Wallet.createRandom();
                 return [4 /*yield*/, ethers_provider_bundle_1.FlashbotsBundleProvider.create(provider, authSigner, FLASHBOTS_URL)];
             case 1:
                 flashbotsProvider = _a.sent();
-                victim = new ethers_1.Wallet(process.env.HACKED_KEY).connect(provider);
+                victim = new ethers_1.Wallet(process.env.VICTIM_KEY).connect(provider);
                 helper = new ethers_1.Wallet(process.env.HELPER_KEY).connect(provider);
-                IERC721ABI = require("./IERC721.json");
-                iface = new ethers_1.utils.Interface(IERC721ABI);
+                IERC721_ABI = require("./IERC721.json");
+                IERC721 = new ethers_1.utils.Interface(IERC721_ABI);
                 return [4 /*yield*/, provider.estimateGas({
                         to: TOKEN_ADDRESS,
-                        data: iface.encodeFunctionData("transferFrom", [
-                            helper.address,
+                        data: IERC721.encodeFunctionData("transferFrom", [
                             victim.address,
+                            helper.address,
                             56
                         ]),
                     })];
             case 2:
-                estimatedGasLimit = _a.sent();
+                estimatedTransferGasConsumption = _a.sent();
                 return [4 /*yield*/, provider.getGasPrice()];
             case 3:
-                estimatedFinalPrice = (_a.sent()).mul(estimatedGasLimit);
-                finalPrice = estimatedFinalPrice.add(ethers_1.ethers.utils.parseEther('0.001'));
+                estimatedFinalPrice = (_a.sent()).mul(estimatedTransferGasConsumption);
                 return [4 /*yield*/, provider.getGasPrice()];
             case 4:
                 currentGasPrice = _a.sent();
-                console.log("Estimated gas limit: ", estimatedGasLimit.toString());
+                finalPrice = estimatedFinalPrice;
+                console.log("Estimated gas limit: ", estimatedTransferGasConsumption.toString());
                 console.log("Final price should be roughly: ", finalPrice.toString());
                 provider.on("block", function (blockNumber) { return __awaiter(void 0, void 0, void 0, function () {
-                    var targetBlockNumber, resp, resolution;
+                    var targetBlockNumber, response, resolution;
                     return __generator(this, function (_a) {
                         switch (_a.label) {
                             case 0:
-                                console.log(blockNumber);
-                                targetBlockNumber = blockNumber + 2;
+                                console.log("current block: ", blockNumber);
+                                targetBlockNumber = blockNumber + 1;
                                 return [4 /*yield*/, flashbotsProvider.sendBundle([
                                         {
                                             signer: helper,
@@ -106,23 +106,24 @@ var main = function () { return __awaiter(void 0, void 0, void 0, function () {
                                                 chainId: 1,
                                                 type: 2,
                                                 to: TOKEN_ADDRESS,
-                                                data: iface.encodeFunctionData("transferFrom", [
+                                                data: IERC721.encodeFunctionData("transferFrom", [
                                                     victim.address,
                                                     helper.address,
                                                     56,
                                                 ]),
+                                                gasPrice: currentGasPrice,
                                                 maxFeePerGas: ethers_1.utils.parseUnits("3", "gwei"),
                                                 maxPriorityFeePerGas: ethers_1.utils.parseUnits("2", "gwei")
                                             },
                                         },
                                     ], targetBlockNumber)];
                             case 1:
-                                resp = _a.sent();
-                                if ("error" in resp) {
-                                    console.log(resp.error.message);
+                                response = _a.sent();
+                                if ("error" in response) {
+                                    console.log(response.error.message);
                                     return [2 /*return*/];
                                 }
-                                return [4 /*yield*/, resp.wait()];
+                                return [4 /*yield*/, response.wait()];
                             case 2:
                                 resolution = _a.sent();
                                 if (resolution === ethers_provider_bundle_1.FlashbotsBundleResolution.BundleIncluded) {
@@ -133,7 +134,7 @@ var main = function () { return __awaiter(void 0, void 0, void 0, function () {
                                     console.log("Not included in ".concat(targetBlockNumber));
                                 }
                                 else if (resolution === ethers_provider_bundle_1.FlashbotsBundleResolution.AccountNonceTooHigh) {
-                                    console.log("Nonce too high, bailing");
+                                    console.log("Nonce too high");
                                     (0, process_1.exit)(1);
                                 }
                                 return [2 /*return*/];

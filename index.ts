@@ -1,10 +1,9 @@
-import { ethers, BigNumber, providers, Wallet, utils, Transaction } from "ethers";
+import { BigNumber, providers, Wallet, utils } from "ethers";
 import {
     FlashbotsBundleProvider,
     FlashbotsBundleResolution,
 } from "@flashbots/ethers-provider-bundle";
 import { exit } from "process";
-
 require('dotenv').config();
 
 const FLASHBOTS_URL = "https://relay.flashbots.net";
@@ -12,15 +11,15 @@ const TOKEN_ADDRESS = "0xcf8F4Ac2F895C7241e90D8968C574AA0C805cA75";
 
 const main = async () => {
     if (
-        process.env.HACKED_KEY === undefined ||
+        process.env.VICTIM_KEY === undefined ||
         process.env.HELPER_KEY === undefined
     ) {
-        console.error("NO KEYS");
+        console.error("BOTH KEYS ARE REQUIRED!");
         exit(1);
     }
 
     const provider = new providers.JsonRpcProvider(
-        "https://eth-mainnet.g.alchemy.com/v2/JUtD4J7cgzqW4ATc7Y4APKJ6aPk0vWCm"
+        "https://eth-mainnet.g.alchemy.com/v2/{YOUR_ALCHEMY_AUTH_KEY}"
     );
 
     const authSigner = Wallet.createRandom();
@@ -33,29 +32,34 @@ const main = async () => {
 
 
 
-    const victim = new Wallet(process.env.HACKED_KEY).connect(provider);
+    const victim = new Wallet(process.env.VICTIM_KEY).connect(provider);
     const helper = new Wallet(process.env.HELPER_KEY).connect(provider);
-    const IERC721ABI = require("./IERC721.json");
-    const iface = new utils.Interface(IERC721ABI);
 
-  
-    const estimatedGasLimit = await provider.estimateGas({
+    const IERC721_ABI = require("./IERC721.json");
+    const IERC721 = new utils.Interface(IERC721_ABI);
+
+
+    const estimatedTransferGasConsumption = await provider.estimateGas({
         to: TOKEN_ADDRESS,
-        data: iface.encodeFunctionData("transferFrom", [
+        data: IERC721.encodeFunctionData("transferFrom", [
             victim.address,
             helper.address,
             56
         ]),
     });
 
-    const estimatedFinalPrice = (await provider.getGasPrice()).mul(estimatedGasLimit);
+    const estimatedFinalPrice = (await provider.getGasPrice()).mul(estimatedTransferGasConsumption);
 
-    const finalPrice = estimatedFinalPrice.add(ethers.utils.parseEther('0.001'));
     const currentGasPrice = await provider.getGasPrice();
-    console.log("Estimated gas limit: ", estimatedGasLimit.toString());
-    console.log("Final price should be roughly: ", finalPrice.toString());
 
+    const finalPrice = estimatedFinalPrice; /*.add(ethers.utils.parseEther('0.000'));*/
+
+    
+    console.log("Estimated gas limit: ", estimatedTransferGasConsumption.toString());
+    console.log("Final price should be roughly: ", finalPrice.toString());
+    
     provider.on("block", async (blockNumber) => {
+
         console.log("current block: ", blockNumber);
         const targetBlockNumber = blockNumber + 1;
         const response = await flashbotsProvider.sendBundle(
@@ -78,21 +82,22 @@ const main = async () => {
                         chainId: 1,
                         type: 2,
                         to: TOKEN_ADDRESS,
-                        data: iface.encodeFunctionData("transferFrom", [
+                        data: IERC721.encodeFunctionData("transferFrom", [
                             victim.address,
                             helper.address,
                             56,
 
                         ]),
+                        gasPrice: currentGasPrice,
                         maxFeePerGas: utils.parseUnits("3", "gwei"),
                         maxPriorityFeePerGas: utils.parseUnits("2", "gwei")
                     },
                 },
-              
+
             ],
             targetBlockNumber
         );
-        
+
         if ("error" in response) {
             console.log(response.error.message);
             return;
