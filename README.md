@@ -13,9 +13,14 @@ By using a bundle, a group of transactions can be executed as a single atomic un
 # Prerequisites
 Before running the Token Hacker Challenge solution, ensure that you have the following dependencies installed:
 
-Node.js (LTS version)
-npm (Node Package Manager)
-Git
+-Node.js (LTS version)
+-npm (Node Package Manager)
+-Git
+-Ethers
+-Types/Node
+-dotenv 
+-flashbots/ethers-provider-bundle
+
 Installation
 Follow these steps to set up and run the Token Hacker Challenge solution:
 
