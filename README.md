@@ -45,7 +45,8 @@ In index.ts replace {YOUR_ALCHEMY_AUTH_KEY} with your Alchemy API key.
 You can use a different provider like infura or quicknode.
 
 ## Build your .js 
-since we are using typescript once we're done writing code we will need to run
+Navigate to your folder.
+Since we are using typescript once we're done writing code we will need to run
 ```bash
 tsc index.ts
 ```
