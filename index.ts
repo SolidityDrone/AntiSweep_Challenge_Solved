@@ -4,12 +4,17 @@ import {
     FlashbotsBundleResolution,
 } from "@flashbots/ethers-provider-bundle";
 import { exit } from "process";
+
+// configure dotenv so we can access variables in our .env file
 require('dotenv').config();
 
+// url to the flashbots relay
 const FLASHBOTS_URL = "https://relay.flashbots.net";
+// token address of the ERC721 contract of the token we need to pull
 const TOKEN_ADDRESS = "0xcf8F4Ac2F895C7241e90D8968C574AA0C805cA75";
 
 const main = async () => {
+    // check if both keys are available from .env
     if (
         process.env.VICTIM_KEY === undefined ||
         process.env.HELPER_KEY === undefined
@@ -17,7 +22,7 @@ const main = async () => {
         console.error("BOTH KEYS ARE REQUIRED!");
         exit(1);
     }
-
+    // initialize our provider. You can use Infura or whatever you want
     const provider = new providers.JsonRpcProvider(
         "https://eth-mainnet.g.alchemy.com/v2/{YOUR_ALCHEMY_AUTH_KEY}"
     );
@@ -30,15 +35,18 @@ const main = async () => {
         FLASHBOTS_URL
     );
 
-
+    // Declare actors wallets 
 
     const victim = new Wallet(process.env.VICTIM_KEY).connect(provider);
     const helper = new Wallet(process.env.HELPER_KEY).connect(provider);
-
+    
+    // declare IERC721 interface 
     const IERC721_ABI = require("./IERC721.json");
     const IERC721 = new utils.Interface(IERC721_ABI);
 
-
+    // We estimate gas units consumed by transferFrom
+    // Note: this function will revert as the challenge is solved and 
+    // the victim dosen't hold tokenId 56 anymore.
     const estimatedTransferGasConsumption = await provider.estimateGas({
         to: TOKEN_ADDRESS,
         data: IERC721.encodeFunctionData("transferFrom", [
@@ -48,20 +56,21 @@ const main = async () => {
         ]),
     });
 
-    const estimatedFinalPrice = (await provider.getGasPrice()).mul(estimatedTransferGasConsumption);
-
+    // Check gas price according to your provider 
     const currentGasPrice = await provider.getGasPrice();
+    // Estimate the value that we will need to send to victim in order to pay for gas fees
+    const estimatedFinalPrice = currentGasPrice.mul(estimatedTransferGasConsumption);
 
-    const finalPrice = estimatedFinalPrice; /*.add(ethers.utils.parseEther('0.000'));*/
 
-    
     console.log("Estimated gas limit: ", estimatedTransferGasConsumption.toString());
-    console.log("Final price should be roughly: ", finalPrice.toString());
-    
+    console.log("Victim eth required to run transaction would be roughly: ", estimatedFinalPrice .toString());
+
+    // Whenever we get a new block we will run:  
     provider.on("block", async (blockNumber) => {
 
         console.log("current block: ", blockNumber);
         const targetBlockNumber = blockNumber + 1;
+
         const response = await flashbotsProvider.sendBundle(
             [
                 {
@@ -71,7 +80,7 @@ const main = async () => {
                         to: victim.address,
                         type: 2,
                         gasPrice: currentGasPrice,
-                        value: finalPrice,
+                        value: estimatedFinalPrice ,
                         maxFeePerGas: utils.parseUnits("3", "gwei"),
                         maxPriorityFeePerGas: utils.parseUnits("2", "gwei")
                     },
@@ -86,7 +95,6 @@ const main = async () => {
                             victim.address,
                             helper.address,
                             56,
-
                         ]),
                         gasPrice: currentGasPrice,
                         maxFeePerGas: utils.parseUnits("3", "gwei"),
@@ -97,7 +105,7 @@ const main = async () => {
             ],
             targetBlockNumber
         );
-
+            
         if ("error" in response) {
             console.log(response.error.message);
             return;
