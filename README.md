@@ -9,6 +9,8 @@ The hacked wallet is targeted by a sweeper bot, which automatically sweeps any i
 To overcome this obstacle, the solution utilizes the Flashbots bundle feature. 
 
 By using a bundle, a group of transactions can be executed as a single atomic unit, without being exposed to the public mempool. This allows the solution to execute a series of transactions in a specific order, bypassing the sweeper bot and successfully retrieving the key token.
+The bundle will ensure that tx1 and tx2 are sequentially ordered inside the block. Avoiding any chance for a bot to include a transaction in between tx1 and tx2.
+
 
 # Prerequisites
 Before running the Token Hacker Challenge solution, ensure that you have the following dependencies installed:
