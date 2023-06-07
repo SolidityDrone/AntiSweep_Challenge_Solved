@@ -39,14 +39,18 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var ethers_1 = require("ethers");
 var ethers_provider_bundle_1 = require("@flashbots/ethers-provider-bundle");
 var process_1 = require("process");
+// configure dotenv so we can access variables in our .env file
 require('dotenv').config();
+// url to the flashbots relay
 var FLASHBOTS_URL = "https://relay.flashbots.net";
+// token address of the ERC721 contract of the token we need to pull
 var TOKEN_ADDRESS = "0xcf8F4Ac2F895C7241e90D8968C574AA0C805cA75";
 var main = function () { return __awaiter(void 0, void 0, void 0, function () {
-    var provider, authSigner, flashbotsProvider, victim, helper, IERC721_ABI, IERC721, estimatedTransferGasConsumption, estimatedFinalPrice, currentGasPrice, finalPrice;
+    var provider, authSigner, flashbotsProvider, victim, helper, IERC721_ABI, IERC721, estimatedTransferGasConsumption, currentGasPrice, estimatedFinalPrice;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
+                // check if both keys are available from .env
                 if (process.env.VICTIM_KEY === undefined ||
                     process.env.HELPER_KEY === undefined) {
                     console.error("BOTH KEYS ARE REQUIRED!");
@@ -73,13 +77,11 @@ var main = function () { return __awaiter(void 0, void 0, void 0, function () {
                 estimatedTransferGasConsumption = _a.sent();
                 return [4 /*yield*/, provider.getGasPrice()];
             case 3:
-                estimatedFinalPrice = (_a.sent()).mul(estimatedTransferGasConsumption);
-                return [4 /*yield*/, provider.getGasPrice()];
-            case 4:
                 currentGasPrice = _a.sent();
-                finalPrice = estimatedFinalPrice;
+                estimatedFinalPrice = currentGasPrice.mul(estimatedTransferGasConsumption);
                 console.log("Estimated gas limit: ", estimatedTransferGasConsumption.toString());
-                console.log("Final price should be roughly: ", finalPrice.toString());
+                console.log("Victim eth required to run transaction would be roughly: ", estimatedFinalPrice.toString());
+                // Whenever we get a new block we will run: 
                 provider.on("block", function (blockNumber) { return __awaiter(void 0, void 0, void 0, function () {
                     var targetBlockNumber, response, resolution;
                     return __generator(this, function (_a) {
@@ -95,7 +97,7 @@ var main = function () { return __awaiter(void 0, void 0, void 0, function () {
                                                 to: victim.address,
                                                 type: 2,
                                                 gasPrice: currentGasPrice,
-                                                value: finalPrice,
+                                                value: estimatedFinalPrice,
                                                 maxFeePerGas: ethers_1.utils.parseUnits("3", "gwei"),
                                                 maxPriorityFeePerGas: ethers_1.utils.parseUnits("2", "gwei")
                                             },
